@@ -4,3 +4,32 @@ INSTALL
 2.- Apply with:  patch -p1 < anophp-5.3.5.diff
 3.- Compile and install PHP as usual.
 
+HOWTO
+=====
+The annotation token is "@@", because the "@" was already taken. So for instance, you would do:
+
+@@AnAnnotation
+@@AnotherAnnotation
+...
+class something {
+...
+}
+
+also:
+
+class something {
+	@@AnAnnotation
+	@@AnotherAnnotation
+	...
+	public function aMethod() {
+		...
+	}
+}
+
+And, best of all:
+class something {
+	public function aMethod(@@AnAnnotation $a, @@An1 @@An2 $b) {
+		...
+	}
+}
+
