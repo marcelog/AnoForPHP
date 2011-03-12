@@ -1,6 +1,10 @@
-NOTICE
+ABOUT
 ======
-This patch is made for PHP 5.3.5, but it should be easy to port it to other 5.3.+ versions.
+First things first, this patch is made for PHP 5.3.5, but it should be easy to port it to other 5.3.+ versions.
+
+Now, the idea behind this patch is pretty obvious. Annotations are a very popular thing and php lacks of them. Also, it's pretty expensive to have them inside doc blocks (i.e: /** */), so this patch is made mostly for the extension reflection of php and the ZendEngine2(tm).
+
+The annotation token is "@@", because the "@" was already taken. So for instance, you would do:
 
 INSTALL
 =======
@@ -10,8 +14,6 @@ INSTALL
 
 HOWTO
 =====
-The annotation token is "@@", because the "@" was already taken. So for instance, you would do:
-
 @@AnAnnotation
 @@AnotherAnnotation
 ...
