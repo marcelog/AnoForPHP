@@ -4,6 +4,10 @@ INSTALL
 2.- Apply with:  patch -p1 < anoforphp-5.3.5.diff
 3.- Compile and install PHP as usual.
 
+BEWARE
+======
+This is an *experimental* work. I'm not that familiar with the internals of ZendEngine(tm) so I wont promess there wont be any memory leaks, or crashes. It seems stable, but please report any issues you may spot so I can correct them as soon as possible ;)
+
 ABOUT
 ======
 First things first, this patch is made for PHP 5.3.5, but it should be easy to port it to other 5.3.+ versions.
