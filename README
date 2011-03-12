@@ -1,0 +1,6 @@
+INSTALL
+=======
+1.- Download the patch.
+2.- Apply with:  patch -p1 < anophp-5.3.5.diff
+3.- Compile and install PHP as usual.
+
