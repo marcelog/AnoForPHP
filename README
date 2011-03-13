@@ -17,7 +17,9 @@ Now, the idea behind this patch is pretty obvious. Annotations are a very popula
 The annotation token is "@@", because the "@" was already taken. So for instance, you would do:
 
 @@AnAnnotation
-@@AnotherAnnotation
+@@AnotherAnnotation("something")
+@@AnotherAnnotation(key1="value1")
+@@AnotherAnnotation(key1="value1", key2="value2")
 ...
 class something {
 ...
@@ -27,7 +29,9 @@ also:
 
 class something {
 	@@AnAnnotation
-	@@AnotherAnnotation
+	@@AnotherAnnotation("something")
+	@@AnotherAnnotation(key1="value1")
+	@@AnotherAnnotation(key1="value1", key2="value2")
 	...
 	public function aMethod() {
 		...
@@ -36,7 +40,7 @@ class something {
 
 And, best of all:
 class something {
-	public function aMethod(@@AnAnnotation $a, @@An1 @@An2 $b) {
+	public function aMethod(@@AnAnnotation $a, @@An1 @@An2(key1="value1") $b) {
 		...
 	}
 }
