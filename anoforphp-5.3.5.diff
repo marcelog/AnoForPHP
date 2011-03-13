@@ -46669,227 +46669,121 @@ index 17956ff..889cc33 100644
  enum YYCONDTYPE {
  	yycST_IN_SCRIPTING,
 diff --git a/ext/reflection/php_reflection.c b/ext/reflection/php_reflection.c
-index 018e262..bec921c 100644
+index 018e262..34d2d89 100644
 --- a/ext/reflection/php_reflection.c
 +++ b/ext/reflection/php_reflection.c
-@@ -1921,6 +1921,72 @@ ZEND_METHOD(reflection_function, getParameters)
+@@ -45,6 +45,9 @@
+ # undef getParameters
+ #endif
+ 
++/* AnoForPHP Patch */
++void getAnnotationsHelper(zval *return_value, HashTable *annotations);
++
+ /* Class entry pointers */
+ PHPAPI zend_class_entry *reflector_ptr;
+ PHPAPI zend_class_entry *reflection_exception_ptr;
+@@ -1921,6 +1924,22 @@ ZEND_METHOD(reflection_function, getParameters)
  }
  /* }}} */
  
++/* AnoForPHP Patch */
 +/* {{{ proto public array ReflectionParameter::getAnnotations()
 +   Returns an associative array containing this parameter's annotations */
 +ZEND_METHOD(reflection_parameter, getAnnotations)
 +{
 +	reflection_object *intern;
 +	parameter_reference *param;
-+	zend_function *mptr;
-+	zval *mysubarray, *annotation_arguments;
-+	HashPosition pointer, pointer2;
-+	zend_annotation_entry annotation;
-+	char *argname;
-+	int argname_len;
-+	char *value;
-+	int argvalue_len;
-+	ulong index;
-+
-+	if (zend_parse_parameters_none() == FAILURE) {
-+		return;
-+	}
-+	GET_REFLECTION_OBJECT_PTR(mptr);
-+	array_init(return_value);
 +
 +	if (zend_parse_parameters_none() == FAILURE) {
 +		return;
 +	}
 +	GET_REFLECTION_OBJECT_PTR(param);
-+
-+	for(
-+		zend_hash_internal_pointer_reset_ex(
-+			param->arg_info->annotations, &pointer
-+		);
-+		zend_hash_get_current_data_ex(
-+			param->arg_info->annotations, (void**) &annotation_arguments, &pointer
-+		) == SUCCESS;
-+		zend_hash_move_forward_ex(mptr->op_array.annotations, &pointer)
-+	) {
-+		zend_hash_get_current_key_ex(
-+			param->arg_info->annotations, &annotation.name,
-+			&annotation.name_length, &index, 0, &pointer
-+		);
-+		ALLOC_INIT_ZVAL(mysubarray);
-+		array_init(mysubarray);
-+		for(
-+			zend_hash_internal_pointer_reset_ex(
-+				(HashTable *)annotation_arguments, &pointer2
-+			);
-+			zend_hash_get_current_data_ex(
-+				(HashTable *)annotation_arguments, (void**) &value, &pointer2
-+			) == SUCCESS;
-+			zend_hash_move_forward_ex((HashTable *)annotation_arguments, &pointer2)
-+		) {
-+			zend_hash_get_current_key_ex(
-+				(HashTable *)annotation_arguments, &argname,
-+				&argname_len, &index, 0, &pointer2
-+			);
-+			if (value == NULL) {
-+				add_assoc_null(mysubarray, argname);
-+			} else {
-+				add_assoc_string(mysubarray, argname, value, 1);
-+			}
-+		}
-+		add_assoc_zval(return_value, annotation.name, mysubarray);
-+	}
++	getAnnotationsHelper(return_value, param->arg_info->annotations);
 +}
 +/* }}} */
 +
  /* {{{ proto public ReflectionExtension|NULL ReflectionFunction::getExtension()
     Returns NULL or the extension the function belongs to */
  ZEND_METHOD(reflection_function, getExtension)
-@@ -2916,6 +2982,66 @@ ZEND_METHOD(reflection_method, isDestructor)
+@@ -2916,6 +2935,22 @@ ZEND_METHOD(reflection_method, isDestructor)
  }
  /* }}} */
  
++/* AnoForPHP Patch */
 +/* {{{ proto public array ReflectionMethod::getAnnotations()
 +   Returns an associative array containing this method's annotations */
 +ZEND_METHOD(reflection_method, getAnnotations)
 +{
 +	reflection_object *intern;
 +	zend_function *mptr;
-+	zval *mysubarray, *annotation_arguments;
-+    HashPosition pointer, pointer2;
-+    zend_annotation_entry annotation;
-+    char *argname;
-+    int argname_len;
-+    char *value;
-+    int argvalue_len;
-+    ulong index;
 +
 +	if (zend_parse_parameters_none() == FAILURE) {
 +		return;
 +	}
 +	GET_REFLECTION_OBJECT_PTR(mptr);
-+	array_init(return_value);
-+
-+	for(
-+		zend_hash_internal_pointer_reset_ex(
-+			mptr->op_array.annotations, &pointer
-+		);
-+		zend_hash_get_current_data_ex(
-+				mptr->op_array.annotations, (void**) &annotation_arguments, &pointer
-+		) == SUCCESS;
-+		zend_hash_move_forward_ex(mptr->op_array.annotations, &pointer)
-+	) {
-+		zend_hash_get_current_key_ex(
-+			mptr->op_array.annotations, &annotation.name,
-+			&annotation.name_length, &index, 0, &pointer
-+		);
-+		ALLOC_INIT_ZVAL(mysubarray);
-+		array_init(mysubarray);
-+		for(
-+			zend_hash_internal_pointer_reset_ex(
-+				(HashTable *)annotation_arguments, &pointer2
-+			);
-+			zend_hash_get_current_data_ex(
-+				(HashTable *)annotation_arguments, (void**) &value, &pointer2
-+			) == SUCCESS;
-+			zend_hash_move_forward_ex((HashTable *)annotation_arguments, &pointer2)
-+		) {
-+			zend_hash_get_current_key_ex(
-+				(HashTable *)annotation_arguments, &argname,
-+				&argname_len, &index, 0, &pointer2
-+			);
-+			if (value == NULL) {
-+				add_assoc_null(mysubarray, argname);
-+			} else {
-+				add_assoc_string(mysubarray, argname, value, 1);
-+			}
-+		}
-+		add_assoc_zval(return_value, annotation.name, mysubarray);
-+    }
++	getAnnotationsHelper(return_value, mptr->op_array.annotations);
 +}
 +/* }}} */
 +
  /* {{{ proto public int ReflectionMethod::getModifiers()
     Returns a bitfield of the access modifiers for this method */
  ZEND_METHOD(reflection_method, getModifiers)
-@@ -3731,6 +3857,66 @@ ZEND_METHOD(reflection_class, hasConstant)
+@@ -3731,6 +3766,22 @@ ZEND_METHOD(reflection_class, hasConstant)
  }
  /* }}} */
  
++/* AnoForPHP Patch */
 +/* {{{ proto public array ReflectionClass::getAnnotations()
 +   Returns an associative array containing this class' annotations */
 +ZEND_METHOD(reflection_class, getAnnotations)
 +{
 +	zend_class_entry *ce;
 +	reflection_object *intern;
-+	zval *mysubarray, *annotation_arguments;
-+	HashPosition pointer, pointer2;
-+	zend_annotation_entry annotation;
-+	char *argname;
-+	int argname_len;
-+	char *value;
-+	int argvalue_len;
-+	ulong index;
 +
 +	if (zend_parse_parameters_none() == FAILURE) {
 +		return;
 +	}
 +	GET_REFLECTION_OBJECT_PTR(ce);
-+	array_init(return_value);
-+
-+	for(
-+		zend_hash_internal_pointer_reset_ex(
-+			ce->annotations, &pointer
-+		);
-+		zend_hash_get_current_data_ex(
-+			ce->annotations, (void**) &annotation_arguments, &pointer
-+		) == SUCCESS;
-+		zend_hash_move_forward_ex(ce->annotations, &pointer)
-+	) {
-+		zend_hash_get_current_key_ex(
-+				ce->annotations, &annotation.name,
-+			&annotation.name_length, &index, 0, &pointer
-+		);
-+		ALLOC_INIT_ZVAL(mysubarray);
-+		array_init(mysubarray);
-+		for(
-+			zend_hash_internal_pointer_reset_ex(
-+				(HashTable *)annotation_arguments, &pointer2
-+			);
-+			zend_hash_get_current_data_ex(
-+				(HashTable *)annotation_arguments, (void**) &value, &pointer2
-+			) == SUCCESS;
-+			zend_hash_move_forward_ex((HashTable *)annotation_arguments, &pointer2)
-+		) {
-+			zend_hash_get_current_key_ex(
-+				(HashTable *)annotation_arguments, &argname,
-+				&argname_len, &index, 0, &pointer2
-+			);
-+			if (value == NULL) {
-+				add_assoc_null(mysubarray, argname);
-+			} else {
-+				add_assoc_string(mysubarray, argname, value, 1);
-+			}
-+		}
-+		add_assoc_zval(return_value, annotation.name, mysubarray);
-+	}
++	getAnnotationsHelper(return_value, ce->annotations);
 +}
 +/* }}} */
 +
  /* {{{ proto public array ReflectionClass::getConstants()
     Returns an associative array containing this class' constants and their values */
  ZEND_METHOD(reflection_class, getConstants)
-@@ -4538,6 +4724,66 @@ ZEND_METHOD(reflection_property, getModifiers)
+@@ -4538,6 +4589,22 @@ ZEND_METHOD(reflection_property, getModifiers)
  }
  /* }}} */
  
++/* AnoForPHP Patch */
 +/* {{{ proto public int ReflectionProperty::getAnnotations()
 +   Returns a bitfield of the access annotations for this property */
 +ZEND_METHOD(reflection_property, getAnnotations)
 +{
 +	reflection_object *intern;
 +	property_reference *ref;
-+	zval *mysubarray, *annotation_arguments;
++
++	if (zend_parse_parameters_none() == FAILURE) {
++		return;
++	}
++	GET_REFLECTION_OBJECT_PTR(ref);
++	getAnnotationsHelper(return_value, ref->prop.annotations);
++}
++/* }}} */
++
+ /* {{{ proto public mixed ReflectionProperty::getValue([stdclass object])
+    Returns this property's value */
+ ZEND_METHOD(reflection_property, getValue)
+@@ -5055,6 +5122,51 @@ ZEND_METHOD(reflection_extension, info)
+ }
+ /* }}} */
+ 
++/* AnoForPHP Patch */
++void
++getAnnotationsHelper(zval *return_value, HashTable *annotations)
++{
++	zval *arguments;
++	HashTable *annotation_arguments;
 +    HashPosition pointer, pointer2;
 +    zend_annotation_entry annotation;
 +    char *argname;
@@ -46898,55 +46792,41 @@ index 018e262..bec921c 100644
 +    int argvalue_len;
 +    ulong index;
 +
-+	if (zend_parse_parameters_none() == FAILURE) {
-+		return;
-+	}
-+	GET_REFLECTION_OBJECT_PTR(ref);
 +	array_init(return_value);
-+
 +	for(
-+		zend_hash_internal_pointer_reset_ex(
-+			ref->prop.annotations, &pointer
-+		);
-+		zend_hash_get_current_data_ex(
-+			ref->prop.annotations, (void**) &annotation_arguments, &pointer
-+		) == SUCCESS;
-+		zend_hash_move_forward_ex(ref->prop.annotations, &pointer)
++		zend_hash_internal_pointer_reset_ex(annotations, &pointer);
++		zend_hash_get_current_data_ex(annotations, (void**) &annotation_arguments, &pointer) == SUCCESS;
++		zend_hash_move_forward_ex(annotations, &pointer)
 +	) {
 +		zend_hash_get_current_key_ex(
-+			ref->prop.annotations, &annotation.name,
++			annotations, &annotation.name,
 +			&annotation.name_length, &index, 0, &pointer
 +		);
-+		ALLOC_INIT_ZVAL(mysubarray);
-+		array_init(mysubarray);
++		ALLOC_INIT_ZVAL(arguments);
++		array_init(arguments);
 +		for(
-+			zend_hash_internal_pointer_reset_ex(
-+				(HashTable *)annotation_arguments, &pointer2
-+			);
-+			zend_hash_get_current_data_ex(
-+				(HashTable *)annotation_arguments, (void**) &value, &pointer2
-+			) == SUCCESS;
-+			zend_hash_move_forward_ex((HashTable *)annotation_arguments, &pointer2)
++			zend_hash_internal_pointer_reset_ex(annotation_arguments, &pointer2);
++			zend_hash_get_current_data_ex(annotation_arguments, (void**) &value, &pointer2) == SUCCESS;
++			zend_hash_move_forward_ex(annotation_arguments, &pointer2)
 +		) {
 +			zend_hash_get_current_key_ex(
-+				(HashTable *)annotation_arguments, &argname,
++				annotation_arguments, &argname,
 +				&argname_len, &index, 0, &pointer2
 +			);
 +			if (value == NULL) {
-+				add_assoc_null(mysubarray, argname);
++				add_assoc_null(arguments, argname);
 +			} else {
-+				add_assoc_string(mysubarray, argname, value, 1);
++				add_assoc_string(arguments, argname, value, 1);
 +			}
 +		}
-+		add_assoc_zval(return_value, annotation.name, mysubarray);
++		add_assoc_zval(return_value, annotation.name, arguments);
 +    }
 +}
-+/* }}} */
 +
- /* {{{ proto public mixed ReflectionProperty::getValue([stdclass object])
-    Returns this property's value */
- ZEND_METHOD(reflection_property, getValue)
-@@ -5175,6 +5421,7 @@ static const zend_function_entry reflection_method_functions[] = {
+ /* {{{ method tables */
+ static const zend_function_entry reflection_exception_functions[] = {
+ 	{NULL, NULL, NULL}
+@@ -5175,6 +5287,7 @@ static const zend_function_entry reflection_method_functions[] = {
  	ZEND_ME(reflection_method, isConstructor, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_method, isDestructor, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_method, getModifiers, arginfo_reflection__void, 0)
@@ -46954,7 +46834,7 @@ index 018e262..bec921c 100644
  	ZEND_ME(reflection_method, invoke, arginfo_reflection_method_invoke, 0)
  	ZEND_ME(reflection_method, invokeArgs, arginfo_reflection_method_invokeArgs, 0)
  	ZEND_ME(reflection_method, getDeclaringClass, arginfo_reflection__void, 0)
-@@ -5277,6 +5524,7 @@ static const zend_function_entry reflection_class_functions[] = {
+@@ -5277,6 +5390,7 @@ static const zend_function_entry reflection_class_functions[] = {
  	ZEND_ME(reflection_class, getProperties, arginfo_reflection_class_getProperties, 0)
  	ZEND_ME(reflection_class, hasConstant, arginfo_reflection_class_hasConstant, 0)
  	ZEND_ME(reflection_class, getConstants, arginfo_reflection__void, 0)
@@ -46962,7 +46842,7 @@ index 018e262..bec921c 100644
  	ZEND_ME(reflection_class, getConstant, arginfo_reflection_class_getConstant, 0)
  	ZEND_ME(reflection_class, getInterfaces, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_class, getInterfaceNames, arginfo_reflection__void, 0)
-@@ -5358,6 +5606,7 @@ static const zend_function_entry reflection_property_functions[] = {
+@@ -5358,6 +5472,7 @@ static const zend_function_entry reflection_property_functions[] = {
  	ZEND_ME(reflection_property, isStatic, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, isDefault, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, getModifiers, arginfo_reflection__void, 0)
@@ -46970,7 +46850,7 @@ index 018e262..bec921c 100644
  	ZEND_ME(reflection_property, getDeclaringClass, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, getDocComment, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, setAccessible, arginfo_reflection_property_setAccessible, 0)
-@@ -5384,6 +5633,7 @@ static const zend_function_entry reflection_parameter_functions[] = {
+@@ -5384,6 +5499,7 @@ static const zend_function_entry reflection_parameter_functions[] = {
  	ZEND_ME(reflection_parameter, isPassedByReference, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, getDeclaringFunction, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, getDeclaringClass, arginfo_reflection__void, 0)
