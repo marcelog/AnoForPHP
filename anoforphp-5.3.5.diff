@@ -84,7 +84,7 @@ index ea00d44..e6e9912 100644
  	zend_hash_update(&ce->properties_info, name, name_length + 1, &property_info, sizeof(zend_property_info), NULL);
  
 diff --git a/Zend/zend_compile.c b/Zend/zend_compile.c
-index af450b8..560938c 100644
+index af450b8..b43b2fa 100644
 --- a/Zend/zend_compile.c
 +++ b/Zend/zend_compile.c
 @@ -182,6 +182,10 @@ void init_compiler(TSRMLS_D) /* {{{ */
@@ -118,7 +118,7 @@ index af450b8..560938c 100644
  
  	if (class_type->op_type != IS_UNUSED) {
  		cur_arg_info->allow_null = 0;
-@@ -3368,6 +3378,35 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
+@@ -3368,6 +3378,40 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
  }
  /* }}} */
  
@@ -128,6 +128,8 @@ index af450b8..560938c 100644
 +	int name_len = arg_name->u.constant.value.str.len + 1;
 +	char *value;
 +	int value_len;
++	zval *temp;
++
 +	if (arg_value == NULL) {
 +		value = NULL;
 +		value_len = 0;
@@ -135,7 +137,10 @@ index af450b8..560938c 100644
 +	} else {
 +		value = arg_value->u.constant.value.str.val;
 +		value_len = arg_value->u.constant.value.str.len + 1;
-+		zend_hash_add(CG(annotations_attributes), name, name_len, value, value_len, NULL);
++	    ALLOC_INIT_ZVAL(temp);
++	    Z_TYPE_P(temp) = IS_STRING;
++	    Z_LVAL_P(temp) = value;
++		zend_hash_add(CG(annotations_attributes), name, name_len, temp, sizeof(zval), NULL);
 +	}
 +}
 +
@@ -154,7 +159,7 @@ index af450b8..560938c 100644
  void zend_do_begin_class_declaration(const znode *class_token, znode *class_name, const znode *parent_class_name TSRMLS_DC) /* {{{ */
  {
  	zend_op *opline;
-@@ -3469,6 +3508,9 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
+@@ -3469,6 +3513,9 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
  	opline->result.op_type = IS_VAR;
  	CG(implementing_class) = opline->result;
  
@@ -46671,7 +46676,7 @@ index 17956ff..889cc33 100644
  enum YYCONDTYPE {
  	yycST_IN_SCRIPTING,
 diff --git a/ext/reflection/php_reflection.c b/ext/reflection/php_reflection.c
-index 018e262..34d2d89 100644
+index 018e262..5c7b8eb 100644
 --- a/ext/reflection/php_reflection.c
 +++ b/ext/reflection/php_reflection.c
 @@ -45,6 +45,9 @@
@@ -46790,7 +46795,7 @@ index 018e262..34d2d89 100644
 +    zend_annotation_entry annotation;
 +    char *argname;
 +    int argname_len;
-+    char *value;
++    zval *value;
 +    int argvalue_len;
 +    ulong index;
 +
@@ -46815,10 +46820,10 @@ index 018e262..34d2d89 100644
 +				annotation_arguments, &argname,
 +				&argname_len, &index, 0, &pointer2
 +			);
-+			if (value == NULL) {
++			if (Z_TYPE_P(value) == IS_NULL) {
 +				add_assoc_null(arguments, argname);
 +			} else {
-+				add_assoc_string(arguments, argname, value, 1);
++				add_assoc_string(arguments, argname, Z_STRVAL_P(value), 1);
 +			}
 +		}
 +		add_assoc_zval(return_value, annotation.name, arguments);
@@ -46862,13 +46867,14 @@ index 018e262..34d2d89 100644
  	ZEND_ME(reflection_parameter, allowsNull, arginfo_reflection__void, 0)
 diff --git a/testannotation.php b/testannotation.php
 new file mode 100644
-index 0000000..0704212
+index 0000000..98b32ba
 --- /dev/null
 +++ b/testannotation.php
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,53 @@
 +<?php
 +@@AnA
 +@@AnB(a="/")
++@@Annotation("foo", bar="foo")
 +class someClass
 +{
 +	const aconstant = 1;
