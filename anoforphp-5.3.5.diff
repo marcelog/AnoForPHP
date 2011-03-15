@@ -70,55 +70,51 @@ index 3427b31..2656c03 100644
  
  	union _zend_function *constructor;
 diff --git a/Zend/zend_API.c b/Zend/zend_API.c
-index ea00d44..637690e 100644
+index ea00d44..d41be33 100644
 --- a/Zend/zend_API.c
 +++ b/Zend/zend_API.c
-@@ -3134,6 +3134,9 @@ ZEND_API int zend_declare_property_ex(zend_class_entry *ce, const char *name, in
+@@ -3134,7 +3134,8 @@ ZEND_API int zend_declare_property_ex(zend_class_entry *ce, const char *name, in
  	property_info.doc_comment_len = doc_comment_len;
  
  	property_info.ce = ce;
+-
 +	property_info.annotations = CG(annotations);
-+	ALLOC_HASHTABLE(CG(annotations));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
- 
++	CG(annotations) = NULL;
  	zend_hash_update(&ce->properties_info, name, name_length + 1, &property_info, sizeof(zend_property_info), NULL);
  
+ 	return SUCCESS;
 diff --git a/Zend/zend_compile.c b/Zend/zend_compile.c
-index af450b8..d98737e 100644
+index af450b8..ba48509 100644
 --- a/Zend/zend_compile.c
 +++ b/Zend/zend_compile.c
-@@ -182,6 +182,10 @@ void init_compiler(TSRMLS_D) /* {{{ */
+@@ -182,6 +182,8 @@ void init_compiler(TSRMLS_D) /* {{{ */
  	zend_init_compiler_data_structures(TSRMLS_C);
  	zend_init_rsrc_list(TSRMLS_C);
  	zend_hash_init(&CG(filenames_table), 5, NULL, (dtor_func_t) free_estring, 0);
-+	ALLOC_HASHTABLE(CG(annotations));
-+	ALLOC_HASHTABLE(CG(annotations_attributes));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
-+	zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) NULL, 0);
++	CG(annotations) = NULL;
++	CG(annotations_attributes) = NULL;
  	zend_llist_init(&CG(open_files), sizeof(zend_file_handle), (void (*)(void *)) file_handle_dtor, 0);
  	CG(unclean_shutdown) = 0;
  }
-@@ -1227,6 +1231,9 @@ void zend_do_begin_function_declaration(znode *function_token, znode *function_n
+@@ -1227,6 +1229,8 @@ void zend_do_begin_function_declaration(znode *function_token, znode *function_n
  	op_array.line_start = zend_get_compiled_lineno(TSRMLS_C);
  
  	if (is_method) {
 +		op_array.annotations = CG(annotations);
-+		ALLOC_HASHTABLE(CG(annotations));
-+		zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
++		CG(annotations) = NULL;
  		if (zend_hash_add(&CG(active_class_entry)->function_table, lcname, name_len+1, &op_array, sizeof(zend_op_array), (void **) &CG(active_op_array)) == FAILURE) {
  			zend_error(E_COMPILE_ERROR, "Cannot redeclare %s::%s()", CG(active_class_entry)->name, name);
  		}
-@@ -1516,6 +1523,9 @@ void zend_do_receive_arg(zend_uchar op, const znode *var, const znode *offset, c
+@@ -1516,6 +1520,8 @@ void zend_do_receive_arg(zend_uchar op, const znode *var, const znode *offset, c
  	cur_arg_info->pass_by_reference = pass_by_reference;
  	cur_arg_info->class_name = NULL;
  	cur_arg_info->class_name_len = 0;
 +	cur_arg_info->annotations = CG(annotations);
-+	ALLOC_HASHTABLE(CG(annotations));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
++	CG(annotations) = NULL;
  
  	if (class_type->op_type != IS_UNUSED) {
  		cur_arg_info->allow_null = 0;
-@@ -3368,6 +3378,43 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
+@@ -3368,6 +3374,57 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
  }
  /* }}} */
  
@@ -130,6 +126,10 @@ index af450b8..d98737e 100644
 +	int value_len;
 +	zval *temp;
 +
++	if (CG(annotations_attributes) == NULL) {
++		ALLOC_HASHTABLE(CG(annotations_attributes));
++		zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) ZVAL_PTR_DTOR, 0);
++	}
 +	ALLOC_INIT_ZVAL(temp);
 +	if (arg_value == NULL) {
 +		value = NULL;
@@ -149,12 +149,22 @@ index af450b8..d98737e 100644
 +
 +void zend_do_begin_annotation_declaration(znode *annotation_name TSRMLS_DC) /* {{{ */
 +{
++	HashTable *empty_attributes;
 +	zend_annotation_entry new_annotation_entry;
 +	new_annotation_entry.name = annotation_name->u.constant.value.str.val;
 +	new_annotation_entry.name_length = annotation_name->u.constant.value.str.len;
-+	zend_hash_add(CG(annotations), new_annotation_entry.name, new_annotation_entry.name_length + 1, CG(annotations_attributes), sizeof(HashTable), NULL);
-+	ALLOC_HASHTABLE(CG(annotations_attributes));
-+	zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) ZVAL_PTR_DTOR, 0);
++	if (CG(annotations) == NULL) {
++		ALLOC_HASHTABLE(CG(annotations));
++		zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
++	}
++	if (CG(annotations_attributes) == NULL) {
++		ALLOC_HASHTABLE(empty_attributes);
++		zend_hash_init(empty_attributes, 0, NULL, (dtor_func_t) ZVAL_PTR_DTOR, 0);
++		zend_hash_add(CG(annotations), new_annotation_entry.name, new_annotation_entry.name_length + 1, empty_attributes, sizeof(HashTable), NULL);
++	} else {
++		zend_hash_add(CG(annotations), new_annotation_entry.name, new_annotation_entry.name_length + 1, CG(annotations_attributes), sizeof(HashTable), NULL);
++		CG(annotations_attributes) = NULL;
++	}
 +	FREE_PNODE(annotation_name);
 +}
 +/* }}} */
@@ -162,17 +172,16 @@ index af450b8..d98737e 100644
  void zend_do_begin_class_declaration(const znode *class_token, znode *class_name, const znode *parent_class_name TSRMLS_DC) /* {{{ */
  {
  	zend_op *opline;
-@@ -3469,6 +3516,9 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
+@@ -3469,6 +3526,8 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
  	opline->result.op_type = IS_VAR;
  	CG(implementing_class) = opline->result;
  
 +	new_class_entry->annotations = CG(annotations);
-+	ALLOC_HASHTABLE(CG(annotations));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
++	CG(annotations) = NULL;
  	if (CG(doc_comment)) {
  		CG(active_class_entry)->doc_comment = CG(doc_comment);
  		CG(active_class_entry)->doc_comment_len = CG(doc_comment_len);
-@@ -5404,6 +5454,23 @@ ZEND_API size_t zend_dirname(char *path, size_t len)
+@@ -5404,6 +5463,23 @@ ZEND_API size_t zend_dirname(char *path, size_t len)
  }
  /* }}} */
  
@@ -46704,19 +46713,21 @@ index 17956ff..889cc33 100644
  enum YYCONDTYPE {
  	yycST_IN_SCRIPTING,
 diff --git a/Zend/zend_opcode.c b/Zend/zend_opcode.c
-index b112173..e514066 100644
+index b112173..d627fd2 100644
 --- a/Zend/zend_opcode.c
 +++ b/Zend/zend_opcode.c
-@@ -184,6 +184,7 @@ ZEND_API void destroy_zend_class(zend_class_entry **pce)
+@@ -184,6 +184,9 @@ ZEND_API void destroy_zend_class(zend_class_entry **pce)
  	}
  	switch (ce->type) {
  		case ZEND_USER_CLASS:
-+			destroy_annotations_data(ce->annotations);
++			if (ce->annotations != NULL) {
++				destroy_annotations_data(ce->annotations);
++			}
  			zend_hash_destroy(&ce->default_properties);
  			zend_hash_destroy(&ce->properties_info);
  			zend_hash_destroy(&ce->default_static_members);
 diff --git a/ext/reflection/php_reflection.c b/ext/reflection/php_reflection.c
-index 018e262..bd02fce 100644
+index 018e262..c69f33a 100644
 --- a/ext/reflection/php_reflection.c
 +++ b/ext/reflection/php_reflection.c
 @@ -45,6 +45,9 @@
@@ -46821,7 +46832,7 @@ index 018e262..bd02fce 100644
  /* {{{ proto public mixed ReflectionProperty::getValue([stdclass object])
     Returns this property's value */
  ZEND_METHOD(reflection_property, getValue)
-@@ -5055,6 +5122,51 @@ ZEND_METHOD(reflection_extension, info)
+@@ -5055,6 +5122,54 @@ ZEND_METHOD(reflection_extension, info)
  }
  /* }}} */
  
@@ -46840,6 +46851,9 @@ index 018e262..bd02fce 100644
 +    ulong index;
 +
 +	array_init(return_value);
++	if (annotations == NULL) {
++		return;
++	}
 +	for(
 +		zend_hash_internal_pointer_reset_ex(annotations, &pointer);
 +		zend_hash_get_current_data_ex(annotations, (void**) &annotation_arguments, &pointer) == SUCCESS;
@@ -46873,7 +46887,7 @@ index 018e262..bd02fce 100644
  /* {{{ method tables */
  static const zend_function_entry reflection_exception_functions[] = {
  	{NULL, NULL, NULL}
-@@ -5175,6 +5287,7 @@ static const zend_function_entry reflection_method_functions[] = {
+@@ -5175,6 +5290,7 @@ static const zend_function_entry reflection_method_functions[] = {
  	ZEND_ME(reflection_method, isConstructor, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_method, isDestructor, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_method, getModifiers, arginfo_reflection__void, 0)
@@ -46881,7 +46895,7 @@ index 018e262..bd02fce 100644
  	ZEND_ME(reflection_method, invoke, arginfo_reflection_method_invoke, 0)
  	ZEND_ME(reflection_method, invokeArgs, arginfo_reflection_method_invokeArgs, 0)
  	ZEND_ME(reflection_method, getDeclaringClass, arginfo_reflection__void, 0)
-@@ -5277,6 +5390,7 @@ static const zend_function_entry reflection_class_functions[] = {
+@@ -5277,6 +5393,7 @@ static const zend_function_entry reflection_class_functions[] = {
  	ZEND_ME(reflection_class, getProperties, arginfo_reflection_class_getProperties, 0)
  	ZEND_ME(reflection_class, hasConstant, arginfo_reflection_class_hasConstant, 0)
  	ZEND_ME(reflection_class, getConstants, arginfo_reflection__void, 0)
@@ -46889,7 +46903,7 @@ index 018e262..bd02fce 100644
  	ZEND_ME(reflection_class, getConstant, arginfo_reflection_class_getConstant, 0)
  	ZEND_ME(reflection_class, getInterfaces, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_class, getInterfaceNames, arginfo_reflection__void, 0)
-@@ -5358,6 +5472,7 @@ static const zend_function_entry reflection_property_functions[] = {
+@@ -5358,6 +5475,7 @@ static const zend_function_entry reflection_property_functions[] = {
  	ZEND_ME(reflection_property, isStatic, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, isDefault, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, getModifiers, arginfo_reflection__void, 0)
@@ -46897,7 +46911,7 @@ index 018e262..bd02fce 100644
  	ZEND_ME(reflection_property, getDeclaringClass, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, getDocComment, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, setAccessible, arginfo_reflection_property_setAccessible, 0)
-@@ -5384,6 +5499,7 @@ static const zend_function_entry reflection_parameter_functions[] = {
+@@ -5384,6 +5502,7 @@ static const zend_function_entry reflection_parameter_functions[] = {
  	ZEND_ME(reflection_parameter, isPassedByReference, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, getDeclaringFunction, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, getDeclaringClass, arginfo_reflection__void, 0)
