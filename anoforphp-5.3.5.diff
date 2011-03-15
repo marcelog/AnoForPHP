@@ -46720,7 +46720,7 @@ index 17956ff..889cc33 100644
  enum YYCONDTYPE {
  	yycST_IN_SCRIPTING,
 diff --git a/Zend/zend_opcode.c b/Zend/zend_opcode.c
-index b112173..d0af916 100644
+index b112173..e4d1319 100644
 --- a/Zend/zend_opcode.c
 +++ b/Zend/zend_opcode.c
 @@ -184,6 +184,9 @@ ZEND_API void destroy_zend_class(zend_class_entry **pce)
@@ -46743,16 +46743,16 @@ index b112173..d0af916 100644
  	if (op_array->static_variables) {
  		zend_hash_destroy(op_array->static_variables);
  		FREE_HASHTABLE(op_array->static_variables);
-@@ -280,6 +286,9 @@ ZEND_API void destroy_op_array(zend_op_array *op_array TSRMLS_DC)
- 		zend_llist_apply_with_argument(&zend_extensions, (llist_apply_with_arg_func_t) zend_extension_op_array_dtor_handler, op_array TSRMLS_CC);
+@@ -281,6 +287,9 @@ ZEND_API void destroy_op_array(zend_op_array *op_array TSRMLS_DC)
  	}
  	if (op_array->arg_info) {
-+		if (op_array->arg_info->annotations != NULL) {
-+			destroy_annotations_data(op_array->arg_info->annotations);
-+		}
  		for (i=0; i<op_array->num_args; i++) {
++			if (op_array->arg_info[i].annotations != NULL) {
++				destroy_annotations_data(op_array->arg_info[i].annotations);
++			}
  			efree((char*)op_array->arg_info[i].name);
  			if (op_array->arg_info[i].class_name) {
+ 				efree((char*)op_array->arg_info[i].class_name);
 diff --git a/ext/reflection/php_reflection.c b/ext/reflection/php_reflection.c
 index 018e262..16e20d1 100644
 --- a/ext/reflection/php_reflection.c
@@ -46949,7 +46949,7 @@ index 018e262..16e20d1 100644
  	ZEND_ME(reflection_parameter, allowsNull, arginfo_reflection__void, 0)
 diff --git a/testannotation.php b/testannotation.php
 new file mode 100644
-index 0000000..a9b1cbf
+index 0000000..d7f0e4b
 --- /dev/null
 +++ b/testannotation.php
 @@ -0,0 +1,42 @@
@@ -46971,7 +46971,7 @@ index 0000000..a9b1cbf
 +	@@SomeMethod1(a1="b1")
 +	@@SomeMethod2("a2")
 +	@@SomeMethod3(a3="\"/!@#$%^&*()b",c3="d3")
-+	public function a(@@AnAnnotation(somearg="yeah",a="b") $a, $b, @@An1 @@An2 $c)
++	public function a(@@A @@B $a, @@C(a="b", b="c") $b, $c)
 +	{
 +	}
 +
