@@ -84,10 +84,20 @@ index ea00d44..d41be33 100644
  
  	return SUCCESS;
 diff --git a/Zend/zend_compile.c b/Zend/zend_compile.c
-index af450b8..ab340bf 100644
+index af450b8..3ba488a 100644
 --- a/Zend/zend_compile.c
 +++ b/Zend/zend_compile.c
-@@ -182,6 +182,8 @@ void init_compiler(TSRMLS_D) /* {{{ */
+@@ -60,6 +60,9 @@ static void zend_duplicate_property_info_internal(zend_property_info *property_i
+ static void zend_destroy_property_info(zend_property_info *property_info) /* {{{ */
+ {
+ 	efree(property_info->name);
++	if (property_info->annotations != NULL) {
++		destroy_annotations_data(property_info->annotations);
++	}
+ 	if (property_info->doc_comment) {
+ 		efree(property_info->doc_comment);
+ 	}
+@@ -182,6 +185,8 @@ void init_compiler(TSRMLS_D) /* {{{ */
  	zend_init_compiler_data_structures(TSRMLS_C);
  	zend_init_rsrc_list(TSRMLS_C);
  	zend_hash_init(&CG(filenames_table), 5, NULL, (dtor_func_t) free_estring, 0);
@@ -96,7 +106,7 @@ index af450b8..ab340bf 100644
  	zend_llist_init(&CG(open_files), sizeof(zend_file_handle), (void (*)(void *)) file_handle_dtor, 0);
  	CG(unclean_shutdown) = 0;
  }
-@@ -1227,6 +1229,8 @@ void zend_do_begin_function_declaration(znode *function_token, znode *function_n
+@@ -1227,6 +1232,8 @@ void zend_do_begin_function_declaration(znode *function_token, znode *function_n
  	op_array.line_start = zend_get_compiled_lineno(TSRMLS_C);
  
  	if (is_method) {
@@ -105,7 +115,7 @@ index af450b8..ab340bf 100644
  		if (zend_hash_add(&CG(active_class_entry)->function_table, lcname, name_len+1, &op_array, sizeof(zend_op_array), (void **) &CG(active_op_array)) == FAILURE) {
  			zend_error(E_COMPILE_ERROR, "Cannot redeclare %s::%s()", CG(active_class_entry)->name, name);
  		}
-@@ -1516,6 +1520,8 @@ void zend_do_receive_arg(zend_uchar op, const znode *var, const znode *offset, c
+@@ -1516,6 +1523,8 @@ void zend_do_receive_arg(zend_uchar op, const znode *var, const znode *offset, c
  	cur_arg_info->pass_by_reference = pass_by_reference;
  	cur_arg_info->class_name = NULL;
  	cur_arg_info->class_name_len = 0;
@@ -114,7 +124,7 @@ index af450b8..ab340bf 100644
  
  	if (class_type->op_type != IS_UNUSED) {
  		cur_arg_info->allow_null = 0;
-@@ -3368,6 +3374,58 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
+@@ -3368,6 +3377,58 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
  }
  /* }}} */
  
@@ -173,7 +183,7 @@ index af450b8..ab340bf 100644
  void zend_do_begin_class_declaration(const znode *class_token, znode *class_name, const znode *parent_class_name TSRMLS_DC) /* {{{ */
  {
  	zend_op *opline;
-@@ -3469,6 +3527,8 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
+@@ -3469,6 +3530,8 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
  	opline->result.op_type = IS_VAR;
  	CG(implementing_class) = opline->result;
  
@@ -182,7 +192,7 @@ index af450b8..ab340bf 100644
  	if (CG(doc_comment)) {
  		CG(active_class_entry)->doc_comment = CG(doc_comment);
  		CG(active_class_entry)->doc_comment_len = CG(doc_comment_len);
-@@ -5404,6 +5464,13 @@ ZEND_API size_t zend_dirname(char *path, size_t len)
+@@ -5404,6 +5467,13 @@ ZEND_API size_t zend_dirname(char *path, size_t len)
  }
  /* }}} */
  
