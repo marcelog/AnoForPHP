@@ -70,7 +70,7 @@ index 3427b31..2656c03 100644
  
  	union _zend_function *constructor;
 diff --git a/Zend/zend_API.c b/Zend/zend_API.c
-index ea00d44..e6e9912 100644
+index ea00d44..637690e 100644
 --- a/Zend/zend_API.c
 +++ b/Zend/zend_API.c
 @@ -3134,6 +3134,9 @@ ZEND_API int zend_declare_property_ex(zend_class_entry *ce, const char *name, in
@@ -78,23 +78,23 @@ index ea00d44..e6e9912 100644
  
  	property_info.ce = ce;
 +	property_info.annotations = CG(annotations);
-+	CG(annotations) = emalloc(sizeof(HashTable));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) free_estring, 0);
++	ALLOC_HASHTABLE(CG(annotations));
++	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
  
  	zend_hash_update(&ce->properties_info, name, name_length + 1, &property_info, sizeof(zend_property_info), NULL);
  
 diff --git a/Zend/zend_compile.c b/Zend/zend_compile.c
-index af450b8..b43b2fa 100644
+index af450b8..d98737e 100644
 --- a/Zend/zend_compile.c
 +++ b/Zend/zend_compile.c
 @@ -182,6 +182,10 @@ void init_compiler(TSRMLS_D) /* {{{ */
  	zend_init_compiler_data_structures(TSRMLS_C);
  	zend_init_rsrc_list(TSRMLS_C);
  	zend_hash_init(&CG(filenames_table), 5, NULL, (dtor_func_t) free_estring, 0);
-+	CG(annotations) = emalloc(sizeof(HashTable));
-+	CG(annotations_attributes) = emalloc(sizeof(HashTable));
++	ALLOC_HASHTABLE(CG(annotations));
++	ALLOC_HASHTABLE(CG(annotations_attributes));
 +	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
-+	zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) free_estring, 0);
++	zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) NULL, 0);
  	zend_llist_init(&CG(open_files), sizeof(zend_file_handle), (void (*)(void *)) file_handle_dtor, 0);
  	CG(unclean_shutdown) = 0;
  }
@@ -103,8 +103,8 @@ index af450b8..b43b2fa 100644
  
  	if (is_method) {
 +		op_array.annotations = CG(annotations);
-+		CG(annotations) = emalloc(sizeof(HashTable));
-+		zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) free_estring, 0);
++		ALLOC_HASHTABLE(CG(annotations));
++		zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
  		if (zend_hash_add(&CG(active_class_entry)->function_table, lcname, name_len+1, &op_array, sizeof(zend_op_array), (void **) &CG(active_op_array)) == FAILURE) {
  			zend_error(E_COMPILE_ERROR, "Cannot redeclare %s::%s()", CG(active_class_entry)->name, name);
  		}
@@ -113,12 +113,12 @@ index af450b8..b43b2fa 100644
  	cur_arg_info->class_name = NULL;
  	cur_arg_info->class_name_len = 0;
 +	cur_arg_info->annotations = CG(annotations);
-+	CG(annotations) = emalloc(sizeof(HashTable));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) free_estring, 0);
++	ALLOC_HASHTABLE(CG(annotations));
++	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
  
  	if (class_type->op_type != IS_UNUSED) {
  		cur_arg_info->allow_null = 0;
-@@ -3368,6 +3378,40 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
+@@ -3368,6 +3378,43 @@ void zend_do_default_before_statement(const znode *case_list, znode *default_tok
  }
  /* }}} */
  
@@ -130,47 +130,74 @@ index af450b8..b43b2fa 100644
 +	int value_len;
 +	zval *temp;
 +
++	ALLOC_INIT_ZVAL(temp);
 +	if (arg_value == NULL) {
 +		value = NULL;
 +		value_len = 0;
-+		zend_hash_add_empty_element(CG(annotations_attributes), name, name_len);
++		Z_TYPE_P(temp) = IS_NULL;
++	        zend_hash_add(CG(annotations_attributes), name, name_len, &temp, sizeof(zval *), NULL);
 +	} else {
 +		value = arg_value->u.constant.value.str.val;
 +		value_len = arg_value->u.constant.value.str.len + 1;
-+	    ALLOC_INIT_ZVAL(temp);
-+	    Z_TYPE_P(temp) = IS_STRING;
-+	    Z_LVAL_P(temp) = value;
-+		zend_hash_add(CG(annotations_attributes), name, name_len, temp, sizeof(zval), NULL);
++		Z_TYPE_P(temp) = IS_STRING;
++		ZVAL_STRINGL(temp, value, value_len, 1);
++	        zend_hash_add(CG(annotations_attributes), name, name_len, &temp, sizeof(zval *), NULL);
++	    	FREE_PNODE(arg_value);
 +	}
++	FREE_PNODE(arg_name);
 +}
 +
 +void zend_do_begin_annotation_declaration(znode *annotation_name TSRMLS_DC) /* {{{ */
 +{
-+	zend_annotation_entry *new_annotation_entry;
-+	new_annotation_entry = emalloc(sizeof(zend_annotation_entry));
-+	new_annotation_entry->name = annotation_name->u.constant.value.str.val;
-+	new_annotation_entry->name_length = annotation_name->u.constant.value.str.len;
-+	zend_hash_add(CG(annotations), new_annotation_entry->name, new_annotation_entry->name_length + 1, CG(annotations_attributes), sizeof(HashTable), NULL);
-+	CG(annotations_attributes) = emalloc(sizeof(HashTable));
-+	zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) free_estring, 0);
++	zend_annotation_entry new_annotation_entry;
++	new_annotation_entry.name = annotation_name->u.constant.value.str.val;
++	new_annotation_entry.name_length = annotation_name->u.constant.value.str.len;
++	zend_hash_add(CG(annotations), new_annotation_entry.name, new_annotation_entry.name_length + 1, CG(annotations_attributes), sizeof(HashTable), NULL);
++	ALLOC_HASHTABLE(CG(annotations_attributes));
++	zend_hash_init(CG(annotations_attributes), 0, NULL, (dtor_func_t) ZVAL_PTR_DTOR, 0);
++	FREE_PNODE(annotation_name);
 +}
 +/* }}} */
 +
  void zend_do_begin_class_declaration(const znode *class_token, znode *class_name, const znode *parent_class_name TSRMLS_DC) /* {{{ */
  {
  	zend_op *opline;
-@@ -3469,6 +3513,9 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
+@@ -3469,6 +3516,9 @@ void zend_do_begin_class_declaration(const znode *class_token, znode *class_name
  	opline->result.op_type = IS_VAR;
  	CG(implementing_class) = opline->result;
  
 +	new_class_entry->annotations = CG(annotations);
-+	CG(annotations) = emalloc(sizeof(HashTable));
-+	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) free_estring, 0);
++	ALLOC_HASHTABLE(CG(annotations));
++	zend_hash_init(CG(annotations), 0, NULL, (dtor_func_t) NULL, 0);
  	if (CG(doc_comment)) {
  		CG(active_class_entry)->doc_comment = CG(doc_comment);
  		CG(active_class_entry)->doc_comment_len = CG(doc_comment_len);
+@@ -5404,6 +5454,23 @@ ZEND_API size_t zend_dirname(char *path, size_t len)
+ }
+ /* }}} */
+ 
++void
++destroy_annotations_data(HashTable *annotations)
++{
++       HashPosition pointer;
++       HashTable *annotation_arguments;
++       for(
++               zend_hash_internal_pointer_reset_ex(annotations, &pointer);
++               zend_hash_get_current_data_ex(annotations, (void**)&annotation_arguments, &pointer) == SUCCESS;
++               zend_hash_move_forward_ex(annotations, &pointer)
++       ) {
++               zend_hash_destroy(annotation_arguments);
++               FREE_HASHTABLE(annotation_arguments);
++       }
++       zend_hash_destroy(annotations);
++       FREE_HASHTABLE(annotations);
++}
++
+ /*
+  * Local variables:
+  * tab-width: 4
 diff --git a/Zend/zend_compile.h b/Zend/zend_compile.h
-index ac9b31b..b303fee 100644
+index ac9b31b..e9e428e 100644
 --- a/Zend/zend_compile.h
 +++ b/Zend/zend_compile.h
 @@ -161,6 +161,7 @@ char *zend_visibility_string(zend_uint fn_flags);
@@ -197,13 +224,14 @@ index ac9b31b..b303fee 100644
  
  	zend_op *opcodes;
  	zend_uint last, size;
-@@ -468,7 +471,8 @@ void zend_do_switch_end(const znode *case_list TSRMLS_DC);
+@@ -468,7 +471,9 @@ void zend_do_switch_end(const znode *case_list TSRMLS_DC);
  void zend_do_case_before_statement(const znode *case_list, znode *case_token, const znode *case_expr TSRMLS_DC);
  void zend_do_case_after_statement(znode *result, const znode *case_token TSRMLS_DC);
  void zend_do_default_before_statement(const znode *case_list, znode *default_token TSRMLS_DC);
 -
 +void zend_do_add_annotation_arg(znode *arg_name, znode *arg_value TSRMLS_DC);
 +void zend_do_begin_annotation_declaration(znode *annotation_name TSRMLS_DC);
++void destroy_annotations_data(HashTable *annotations);
  void zend_do_begin_class_declaration(const znode *class_token, znode *class_name, const znode *parent_class_name TSRMLS_DC);
  void zend_do_end_class_declaration(const znode *class_token, const znode *parent_token TSRMLS_DC);
  void zend_do_declare_property(const znode *var_name, const znode *value, zend_uint access_type TSRMLS_DC);
@@ -46675,8 +46703,20 @@ index 17956ff..889cc33 100644
  
  enum YYCONDTYPE {
  	yycST_IN_SCRIPTING,
+diff --git a/Zend/zend_opcode.c b/Zend/zend_opcode.c
+index b112173..e514066 100644
+--- a/Zend/zend_opcode.c
++++ b/Zend/zend_opcode.c
+@@ -184,6 +184,7 @@ ZEND_API void destroy_zend_class(zend_class_entry **pce)
+ 	}
+ 	switch (ce->type) {
+ 		case ZEND_USER_CLASS:
++			destroy_annotations_data(ce->annotations);
+ 			zend_hash_destroy(&ce->default_properties);
+ 			zend_hash_destroy(&ce->properties_info);
+ 			zend_hash_destroy(&ce->default_static_members);
 diff --git a/ext/reflection/php_reflection.c b/ext/reflection/php_reflection.c
-index 018e262..5c7b8eb 100644
+index 018e262..bd02fce 100644
 --- a/ext/reflection/php_reflection.c
 +++ b/ext/reflection/php_reflection.c
 @@ -45,6 +45,9 @@
@@ -46795,7 +46835,7 @@ index 018e262..5c7b8eb 100644
 +    zend_annotation_entry annotation;
 +    char *argname;
 +    int argname_len;
-+    zval *value;
++    zval **value;
 +    int argvalue_len;
 +    ulong index;
 +
@@ -46813,17 +46853,17 @@ index 018e262..5c7b8eb 100644
 +		array_init(arguments);
 +		for(
 +			zend_hash_internal_pointer_reset_ex(annotation_arguments, &pointer2);
-+			zend_hash_get_current_data_ex(annotation_arguments, (void**) &value, &pointer2) == SUCCESS;
++			zend_hash_get_current_data_ex(annotation_arguments, (void**)&value, &pointer2) == SUCCESS;
 +			zend_hash_move_forward_ex(annotation_arguments, &pointer2)
 +		) {
 +			zend_hash_get_current_key_ex(
 +				annotation_arguments, &argname,
 +				&argname_len, &index, 0, &pointer2
 +			);
-+			if (Z_TYPE_P(value) == IS_NULL) {
++			if (Z_TYPE_PP(value) == IS_NULL) {
 +				add_assoc_null(arguments, argname);
 +			} else {
-+				add_assoc_string(arguments, argname, Z_STRVAL_P(value), 1);
++				add_assoc_string(arguments, argname, Z_STRVAL_PP(value), 1);
 +			}
 +		}
 +		add_assoc_zval(return_value, annotation.name, arguments);
@@ -46867,10 +46907,10 @@ index 018e262..5c7b8eb 100644
  	ZEND_ME(reflection_parameter, allowsNull, arginfo_reflection__void, 0)
 diff --git a/testannotation.php b/testannotation.php
 new file mode 100644
-index 0000000..98b32ba
+index 0000000..45a6948
 --- /dev/null
 +++ b/testannotation.php
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,42 @@
 +<?php
 +@@AnA
 +@@AnB(a="/")
@@ -46886,9 +46926,9 @@ index 0000000..98b32ba
 +	@@SomeProperty3Annotation(a3="\"/!@#$%^&*()b",c3="d3")
 +	private $something2;
 +
-+	@@SomeMethod(a1="b1")
-+	@@SomeMethod("a2")
-+	@@SomeMethod(a3="\"/!@#$%^&*()b",c3="d3")
++	@@SomeMethod1(a1="b1")
++	@@SomeMethod2("a2")
++	@@SomeMethod3(a3="\"/!@#$%^&*()b",c3="d3")
 +	public function a(@@AnAnnotation(somearg="yeah") $a, $b, @@An1 @@An2 $c)
 +	{
 +	}
@@ -46897,15 +46937,6 @@ index 0000000..98b32ba
 +	{
 +	}
 +}
-+
-+class someClass2
-+{
-+	const aconstant = 1;
-+	public function a()
-+	{
-+	}
-+}
-+
 +
 +$a = new ReflectionClass('someClass');
 +var_dump($a->getAnnotations());
@@ -46922,5 +46953,3 @@ index 0000000..98b32ba
 +		var_dump($argument->getAnnotations());
 +	}
 +}
-+$a = new ReflectionClass('someClass2');
-+var_dump($a->getAnnotations());
