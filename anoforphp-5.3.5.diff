@@ -46720,10 +46720,18 @@ index 17956ff..889cc33 100644
  enum YYCONDTYPE {
  	yycST_IN_SCRIPTING,
 diff --git a/Zend/zend_opcode.c b/Zend/zend_opcode.c
-index b112173..e4d1319 100644
+index b112173..e8cc8ec 100644
 --- a/Zend/zend_opcode.c
 +++ b/Zend/zend_opcode.c
-@@ -184,6 +184,9 @@ ZEND_API void destroy_zend_class(zend_class_entry **pce)
+@@ -73,6 +73,7 @@ void init_op_array(zend_op_array *op_array, zend_uchar type, int initial_ops_siz
+ 
+ 	op_array->T = 0;
+ 
++	op_array->annotations = NULL;
+ 	op_array->function_name = NULL;
+ 	op_array->filename = zend_get_compiled_filename(TSRMLS_C);
+ 	op_array->doc_comment = NULL;
+@@ -184,6 +185,9 @@ ZEND_API void destroy_zend_class(zend_class_entry **pce)
  	}
  	switch (ce->type) {
  		case ZEND_USER_CLASS:
@@ -46733,7 +46741,7 @@ index b112173..e4d1319 100644
  			zend_hash_destroy(&ce->default_properties);
  			zend_hash_destroy(&ce->properties_info);
  			zend_hash_destroy(&ce->default_static_members);
-@@ -227,6 +230,9 @@ ZEND_API void destroy_op_array(zend_op_array *op_array TSRMLS_DC)
+@@ -227,6 +231,9 @@ ZEND_API void destroy_op_array(zend_op_array *op_array TSRMLS_DC)
  	zend_op *end = op_array->opcodes+op_array->last;
  	zend_uint i;
  
@@ -46743,7 +46751,7 @@ index b112173..e4d1319 100644
  	if (op_array->static_variables) {
  		zend_hash_destroy(op_array->static_variables);
  		FREE_HASHTABLE(op_array->static_variables);
-@@ -281,6 +287,9 @@ ZEND_API void destroy_op_array(zend_op_array *op_array TSRMLS_DC)
+@@ -281,6 +288,9 @@ ZEND_API void destroy_op_array(zend_op_array *op_array TSRMLS_DC)
  	}
  	if (op_array->arg_info) {
  		for (i=0; i<op_array->num_args; i++) {
@@ -46949,10 +46957,10 @@ index 018e262..16e20d1 100644
  	ZEND_ME(reflection_parameter, allowsNull, arginfo_reflection__void, 0)
 diff --git a/testannotation.php b/testannotation.php
 new file mode 100644
-index 0000000..d7f0e4b
+index 0000000..403a326
 --- /dev/null
 +++ b/testannotation.php
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,45 @@
 +<?php
 +@@AnA
 +@@AnB(a="/")
@@ -46994,4 +47002,7 @@ index 0000000..d7f0e4b
 +		echo "Argument: " . $argument->getName() . "\n";
 +		var_dump($argument->getAnnotations());
 +	}
++}
++function a()
++{
 +}
