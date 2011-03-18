@@ -47103,7 +47103,7 @@ index b112173..e8cc8ec 100644
  			if (op_array->arg_info[i].class_name) {
  				efree((char*)op_array->arg_info[i].class_name);
 diff --git a/ext/reflection/php_reflection.c b/ext/reflection/php_reflection.c
-index 018e262..16e20d1 100644
+index 018e262..9871161 100644
 --- a/ext/reflection/php_reflection.c
 +++ b/ext/reflection/php_reflection.c
 @@ -45,6 +45,9 @@
@@ -47116,7 +47116,7 @@ index 018e262..16e20d1 100644
  /* Class entry pointers */
  PHPAPI zend_class_entry *reflector_ptr;
  PHPAPI zend_class_entry *reflection_exception_ptr;
-@@ -1921,6 +1924,22 @@ ZEND_METHOD(reflection_function, getParameters)
+@@ -1921,6 +1924,49 @@ ZEND_METHOD(reflection_function, getParameters)
  }
  /* }}} */
  
@@ -47136,10 +47136,37 @@ index 018e262..16e20d1 100644
 +}
 +/* }}} */
 +
++/* {{{ proto public array ReflectionParameter::getAnnotation(string name)
++   Returns the parameter's annotation specified by its name or false */
++ZEND_METHOD(reflection_parameter, getAnnotation)
++{
++	reflection_object *intern;
++	parameter_reference *param;
++	zval **existing_zval;
++	char *name;
++	int name_len;
++
++	METHOD_NOTSTATIC(reflection_parameter_ptr);
++	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &name, &name_len) == FAILURE) {
++		return;
++	}
++
++	GET_REFLECTION_OBJECT_PTR(param);
++	if(
++		param->arg_info->annotations != NULL
++		&& zend_hash_find(param->arg_info->annotations, name, name_len + 1, (void **)&existing_zval) == SUCCESS
++	) {
++		MAKE_COPY_ZVAL(existing_zval, return_value);
++	} else {
++		RETURN_FALSE;
++	}
++}
++/* }}} */
++
  /* {{{ proto public ReflectionExtension|NULL ReflectionFunction::getExtension()
     Returns NULL or the extension the function belongs to */
  ZEND_METHOD(reflection_function, getExtension)
-@@ -2916,6 +2935,22 @@ ZEND_METHOD(reflection_method, isDestructor)
+@@ -2916,6 +2962,49 @@ ZEND_METHOD(reflection_method, isDestructor)
  }
  /* }}} */
  
@@ -47159,10 +47186,68 @@ index 018e262..16e20d1 100644
 +}
 +/* }}} */
 +
++/* {{{ proto public array ReflectionMethod::getAnnotation(string name)
++   Returns the method's annotation specified by its name or false */
++ZEND_METHOD(reflection_method, getAnnotation)
++{
++	reflection_object *intern;
++	zend_function *mptr;
++	zval **existing_zval;
++	char *name;
++	int name_len;
++
++	METHOD_NOTSTATIC(reflection_method_ptr);
++	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &name, &name_len) == FAILURE) {
++		return;
++	}
++
++	GET_REFLECTION_OBJECT_PTR(mptr);
++	if(
++		mptr->op_array.annotations != NULL
++		&& zend_hash_find(mptr->op_array.annotations, name, name_len + 1, (void **)&existing_zval) == SUCCESS
++	) {
++		MAKE_COPY_ZVAL(existing_zval, return_value);
++	} else {
++		RETURN_FALSE;
++	}
++}
++/* }}} */
++
  /* {{{ proto public int ReflectionMethod::getModifiers()
     Returns a bitfield of the access modifiers for this method */
  ZEND_METHOD(reflection_method, getModifiers)
-@@ -3731,6 +3766,22 @@ ZEND_METHOD(reflection_class, hasConstant)
+@@ -3411,6 +3500,30 @@ ZEND_METHOD(reflection_class, hasMethod)
+ }
+ /* }}} */
+ 
++/* {{{ proto public array ReflectionClass::getAnnotation(string name)
++   Returns the class' annotation specified by its name or false. */
++ZEND_METHOD(reflection_class, getAnnotation)
++{
++	reflection_object *intern;
++	zend_class_entry *ce;
++	zval **existing_zval;
++	char *name;
++	int name_len;
++
++	METHOD_NOTSTATIC(reflection_class_ptr);
++	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &name, &name_len) == FAILURE) {
++		return;
++	}
++
++	GET_REFLECTION_OBJECT_PTR(ce);
++	if(zend_hash_find(ce->annotations, name, name_len + 1, (void **)&existing_zval) == SUCCESS) {
++		MAKE_COPY_ZVAL(existing_zval, return_value);
++	} else {
++		RETURN_FALSE;
++	}
++}
++/* }}} */
++
+ /* {{{ proto public ReflectionMethod ReflectionClass::getMethod(string name) throws ReflectionException
+    Returns the class' method specified by its name */
+ ZEND_METHOD(reflection_class, getMethod)
+@@ -3731,6 +3844,22 @@ ZEND_METHOD(reflection_class, hasConstant)
  }
  /* }}} */
  
@@ -47185,12 +47270,12 @@ index 018e262..16e20d1 100644
  /* {{{ proto public array ReflectionClass::getConstants()
     Returns an associative array containing this class' constants and their values */
  ZEND_METHOD(reflection_class, getConstants)
-@@ -4538,6 +4589,22 @@ ZEND_METHOD(reflection_property, getModifiers)
+@@ -4538,6 +4667,49 @@ ZEND_METHOD(reflection_property, getModifiers)
  }
  /* }}} */
  
 +/* AnoForPHP Patch */
-+/* {{{ proto public int ReflectionProperty::getAnnotations()
++/* {{{ proto public array ReflectionProperty::getAnnotations()
 +   Returns a bitfield of the access annotations for this property */
 +ZEND_METHOD(reflection_property, getAnnotations)
 +{
@@ -47205,10 +47290,37 @@ index 018e262..16e20d1 100644
 +}
 +/* }}} */
 +
++/* {{{ proto public array ReflectionProperty::getAnnotation(string name)
++   Returns the class' annotation specified by its name or false */
++ZEND_METHOD(reflection_property, getAnnotation)
++{
++	reflection_object *intern;
++	property_reference *ref;
++	zval **existing_zval;
++	char *name;
++	int name_len;
++
++	METHOD_NOTSTATIC(reflection_property_ptr);
++	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &name, &name_len) == FAILURE) {
++		return;
++	}
++
++	GET_REFLECTION_OBJECT_PTR(ref);
++	if(
++		ref->prop.annotations != NULL
++		&& zend_hash_find(ref->prop.annotations, name, name_len + 1, (void **)&existing_zval) == SUCCESS
++	) {
++		MAKE_COPY_ZVAL(existing_zval, return_value);
++	} else {
++		RETURN_FALSE;
++	}
++}
++/* }}} */
++
  /* {{{ proto public mixed ReflectionProperty::getValue([stdclass object])
     Returns this property's value */
  ZEND_METHOD(reflection_property, getValue)
-@@ -5055,6 +5122,55 @@ ZEND_METHOD(reflection_extension, info)
+@@ -5055,6 +5227,55 @@ ZEND_METHOD(reflection_extension, info)
  }
  /* }}} */
  
@@ -47264,44 +47376,100 @@ index 018e262..16e20d1 100644
  /* {{{ method tables */
  static const zend_function_entry reflection_exception_functions[] = {
  	{NULL, NULL, NULL}
-@@ -5175,6 +5291,7 @@ static const zend_function_entry reflection_method_functions[] = {
+@@ -5162,6 +5383,10 @@ ZEND_BEGIN_ARG_INFO(arginfo_reflection_method_setAccessible, 0)
+ 	ZEND_ARG_INFO(0, value)
+ ZEND_END_ARG_INFO()
+ 
++ZEND_BEGIN_ARG_INFO(arginfo_reflection_method_getAnnotation, 0)
++	ZEND_ARG_INFO(0, name)
++ZEND_END_ARG_INFO()
++
+ static const zend_function_entry reflection_method_functions[] = {
+ 	ZEND_ME(reflection_method, export, arginfo_reflection_method_export, ZEND_ACC_STATIC|ZEND_ACC_PUBLIC)
+ 	ZEND_ME(reflection_method, __construct, arginfo_reflection_method___construct, 0)
+@@ -5175,6 +5400,8 @@ static const zend_function_entry reflection_method_functions[] = {
  	ZEND_ME(reflection_method, isConstructor, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_method, isDestructor, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_method, getModifiers, arginfo_reflection__void, 0)
 +	ZEND_ME(reflection_method, getAnnotations, arginfo_reflection__void, 0)
++	ZEND_ME(reflection_method, getAnnotation, arginfo_reflection_method_getAnnotation, 0)
  	ZEND_ME(reflection_method, invoke, arginfo_reflection_method_invoke, 0)
  	ZEND_ME(reflection_method, invokeArgs, arginfo_reflection_method_invokeArgs, 0)
  	ZEND_ME(reflection_method, getDeclaringClass, arginfo_reflection__void, 0)
-@@ -5277,6 +5394,7 @@ static const zend_function_entry reflection_class_functions[] = {
+@@ -5183,7 +5410,6 @@ static const zend_function_entry reflection_method_functions[] = {
+ 	{NULL, NULL, NULL}
+ };
+ 
+-
+ ZEND_BEGIN_ARG_INFO_EX(arginfo_reflection_class_export, 0, 0, 1)
+ 	ZEND_ARG_INFO(0, argument)
+ 	ZEND_ARG_INFO(0, return)
+@@ -5255,6 +5481,10 @@ ZEND_BEGIN_ARG_INFO(arginfo_reflection_class_implementsInterface, 0)
+ 	ZEND_ARG_INFO(0, interface)
+ ZEND_END_ARG_INFO()
+ 
++ZEND_BEGIN_ARG_INFO(arginfo_reflection_class_getAnnotation, 0)
++	ZEND_ARG_INFO(0, name)
++ZEND_END_ARG_INFO()
++
+ static const zend_function_entry reflection_class_functions[] = {
+ 	ZEND_ME(reflection, __clone, arginfo_reflection__void, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
+ 	ZEND_ME(reflection_class, export, arginfo_reflection_class_export, ZEND_ACC_STATIC|ZEND_ACC_PUBLIC)
+@@ -5277,6 +5507,8 @@ static const zend_function_entry reflection_class_functions[] = {
  	ZEND_ME(reflection_class, getProperties, arginfo_reflection_class_getProperties, 0)
  	ZEND_ME(reflection_class, hasConstant, arginfo_reflection_class_hasConstant, 0)
  	ZEND_ME(reflection_class, getConstants, arginfo_reflection__void, 0)
 +	ZEND_ME(reflection_class, getAnnotations, arginfo_reflection__void, 0)
++	ZEND_ME(reflection_class, getAnnotation, arginfo_reflection_class_getAnnotation, 0)
  	ZEND_ME(reflection_class, getConstant, arginfo_reflection_class_getConstant, 0)
  	ZEND_ME(reflection_class, getInterfaces, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_class, getInterfaceNames, arginfo_reflection__void, 0)
-@@ -5358,6 +5476,7 @@ static const zend_function_entry reflection_property_functions[] = {
+@@ -5344,6 +5576,10 @@ ZEND_BEGIN_ARG_INFO(arginfo_reflection_property_setAccessible, 0)
+ 	ZEND_ARG_INFO(0, visible)
+ ZEND_END_ARG_INFO()
+ 
++ZEND_BEGIN_ARG_INFO(arginfo_reflection_property_getAnnotation, 0)
++	ZEND_ARG_INFO(0, name)
++ZEND_END_ARG_INFO()
++
+ static const zend_function_entry reflection_property_functions[] = {
+ 	ZEND_ME(reflection, __clone, arginfo_reflection__void, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
+ 	ZEND_ME(reflection_property, export, arginfo_reflection_property_export, ZEND_ACC_STATIC|ZEND_ACC_PUBLIC)
+@@ -5358,6 +5594,8 @@ static const zend_function_entry reflection_property_functions[] = {
  	ZEND_ME(reflection_property, isStatic, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, isDefault, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, getModifiers, arginfo_reflection__void, 0)
 +	ZEND_ME(reflection_property, getAnnotations, arginfo_reflection__void, 0)
++	ZEND_ME(reflection_property, getAnnotation, arginfo_reflection_property_getAnnotation, 0)
  	ZEND_ME(reflection_property, getDeclaringClass, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, getDocComment, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_property, setAccessible, arginfo_reflection_property_setAccessible, 0)
-@@ -5384,6 +5503,7 @@ static const zend_function_entry reflection_parameter_functions[] = {
+@@ -5375,6 +5613,10 @@ ZEND_BEGIN_ARG_INFO(arginfo_reflection_parameter___construct, 0)
+ 	ZEND_ARG_INFO(0, parameter)
+ ZEND_END_ARG_INFO()
+ 
++ZEND_BEGIN_ARG_INFO(arginfo_reflection_parameter_getAnnotation, 0)
++	ZEND_ARG_INFO(0, name)
++ZEND_END_ARG_INFO()
++
+ static const zend_function_entry reflection_parameter_functions[] = {
+ 	ZEND_ME(reflection, __clone, arginfo_reflection__void, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
+ 	ZEND_ME(reflection_parameter, export, arginfo_reflection_parameter_export, ZEND_ACC_STATIC|ZEND_ACC_PUBLIC)
+@@ -5384,6 +5626,8 @@ static const zend_function_entry reflection_parameter_functions[] = {
  	ZEND_ME(reflection_parameter, isPassedByReference, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, getDeclaringFunction, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, getDeclaringClass, arginfo_reflection__void, 0)
 +	ZEND_ME(reflection_parameter, getAnnotations, arginfo_reflection__void, 0)
++	ZEND_ME(reflection_parameter, getAnnotation, arginfo_reflection_parameter_getAnnotation, 0)
  	ZEND_ME(reflection_parameter, getClass, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, isArray, arginfo_reflection__void, 0)
  	ZEND_ME(reflection_parameter, allowsNull, arginfo_reflection__void, 0)
 diff --git a/testannotation.php b/testannotation.php
 new file mode 100644
-index 0000000..af1cd3a
+index 0000000..e50926c
 --- /dev/null
 +++ b/testannotation.php
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,56 @@
 +<?php
 +@@AnA
 +@@AnB(a="/")
@@ -47329,23 +47497,32 @@ index 0000000..af1cd3a
 +	}
 +}
 +
-+$a = new ReflectionClass('someClass');
-+var_dump($a->getAnnotations());
-+foreach ($a->getProperties() as $property) {
-+	echo "Property: " . $property->getName() . "\n";
-+	var_dump($property->getAnnotations());
++$class = new ReflectionClass('someClass');
++foreach ($class->getAnnotations() as $key => $value) {
++	echo "Annotation: $key\n";
++	var_dump($class->getAnnotation($key));
 +}
 +
-+foreach ($a->getMethods() as $method) {
-+	echo "Method: " . $method->getName() . "\n";
-+	var_dump($method->getAnnotations());
-+	foreach ($method->getParameters() as $argument) {
-+		echo "Argument: " . $argument->getName() . "\n";
-+		var_dump($argument->getAnnotations());
++foreach ($class->getProperties() as $property) {
++	echo "Property: " . $property->getName() . "\n";
++	foreach ($property->getAnnotations() as $key => $value) {
++		echo "Annotation: $key\n";
++		var_dump($property->getAnnotation($key));
 +	}
 +}
-+function a()
-+{
++
++foreach ($class->getMethods() as $method) {
++	echo "Method: " . $method->getName() . "\n";
++	var_dump($method->getAnnotations());
++	foreach ($method->getAnnotations() as $key => $value) {
++		echo "Annotation: $key\n";
++		var_dump($method->getAnnotation($key));
++	}
++	foreach ($method->getParameters() as $argument) {
++		echo "Argument: " . $argument->getName() . "\n";
++		foreach ($argument->getAnnotations() as $key => $value) {
++			echo "Annotation: $key\n";
++			var_dump($argument->getAnnotation($key));
++		}
++	}
 +}
-+$b = 5;
-+echo a($b);
